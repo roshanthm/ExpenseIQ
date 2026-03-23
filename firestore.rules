@@ -1,0 +1,109 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: expenses
+// Document ID: auto-generated
+// Fields:
+//   - title: string (required, 1-100 chars)
+//   - amount: number (required, positive)
+//   - category: string (required, enum)
+//   - date: string (required, ISO 8601 format)
+//   - payment_method: string (required, enum)
+//   - uid: string (required, matches auth.uid)
+//
+// Collection: budgets
+// Document ID: auto-generated (or category_uid)
+// Fields:
+//   - category: string (required)
+//   - amount: number (required, positive)
+//   - uid: string (required, matches auth.uid)
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}.*");
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "roshanpattathilsep16@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidExpense(data) {
+      let categories = ['Food', 'Transport', 'Entertainment', 'Shopping', 'Health', 'Bills', 'Other'];
+      let methods = ['Cash', 'Credit Card', 'Debit Card', 'Bank Transfer'];
+      
+      return data.keys().hasAll(['title', 'amount', 'category', 'date', 'payment_method', 'uid']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
+             data.amount is number && data.amount >= 0 &&
+             data.category in categories &&
+             isValidDateString(data.date) &&
+             data.payment_method in methods &&
+             data.uid == request.auth.uid;
+    }
+
+    function isValidBudget(data) {
+      return data.keys().hasAll(['category', 'amount', 'uid']) &&
+             data.category is string && data.category.size() > 0 &&
+             data.amount is number && data.amount >= 0 &&
+             data.uid == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /expenses/{expenseId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidExpense(request.resource.data);
+      allow update: if isDocOwner() && isValidExpense(request.resource.data) && uidUnchanged();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /budgets/{budgetId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidBudget(request.resource.data);
+      allow update: if isDocOwner() && isValidBudget(request.resource.data) && uidUnchanged();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isAdmin();
+    }
+  }
+}

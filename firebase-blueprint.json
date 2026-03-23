@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "Expense": {
+      "title": "Expense",
+      "description": "A single expense record",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "The name of the expense" },
+        "amount": { "type": "number", "description": "The cost of the expense" },
+        "category": { "type": "string", "description": "The category (e.g., Food, Transport)" },
+        "date": { "type": "string", "format": "date", "description": "ISO date string" },
+        "payment_method": { "type": "string", "description": "How it was paid" },
+        "uid": { "type": "string", "description": "The owner's user ID" }
+      },
+      "required": ["title", "amount", "category", "date", "payment_method", "uid"]
+    },
+    "Budget": {
+      "title": "Budget",
+      "description": "A monthly budget for a category",
+      "type": "object",
+      "properties": {
+        "category": { "type": "string", "description": "The category name" },
+        "amount": { "type": "number", "description": "The budget limit" },
+        "uid": { "type": "string", "description": "The owner's user ID" }
+      },
+      "required": ["category", "amount", "uid"]
+    }
+  },
+  "firestore": {
+    "/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Collection of all user expenses"
+    },
+    "/budgets/{budgetId}": {
+      "schema": "Budget",
+      "description": "Collection of user budget limits"
+    }
+  }
+}
