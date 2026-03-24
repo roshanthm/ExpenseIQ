@@ -74,20 +74,6 @@ The system uses a relational database structure with optimized queries for:
 
 ---
 
-## Project Structure
-
-```
-ExpenseIQ/
-│── src/                # Frontend source code
-│── server.ts           # Backend server
-│── db.ts               # Database configuration
-│── package.json
-│── index.html
-│── README.md
-```
-
----
-
 ## Installation and Setup
 
 ```
