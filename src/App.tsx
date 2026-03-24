@@ -17,7 +17,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   LogOut,
-  LogIn
+  LogIn,
+  Database
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -74,7 +75,7 @@ const PAYMENT_METHODS = ['Cash', 'Credit Card', 'Debit Card', 'Bank Transfer'];
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'expenses' | 'budgets'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'expenses' | 'budgets' | 'sql'>('dashboard');
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [isAdding, setIsAdding] = useState(false);
@@ -362,6 +363,7 @@ export default function App() {
         <NavItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} label="Dashboard" />
         <NavItem active={activeTab === 'expenses'} onClick={() => setActiveTab('expenses')} icon={<List size={24} />} label="History" />
         <NavItem active={activeTab === 'budgets'} onClick={() => setActiveTab('budgets')} icon={<PieChartIcon size={24} />} label="Budgets" />
+        <NavItem active={activeTab === 'sql'} onClick={() => setActiveTab('sql')} icon={<Database size={24} />} label="SQL Schema" />
         <button 
           onClick={() => setIsAdding(true)}
           className="w-12 h-12 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-600/20 transition-all hover:scale-110 active:scale-95"
@@ -379,7 +381,7 @@ export default function App() {
           <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                {activeTab === 'dashboard' ? 'Financial Overview' : activeTab === 'expenses' ? 'Transaction History' : 'Budget Planning'}
+                {activeTab === 'dashboard' ? 'Financial Overview' : activeTab === 'expenses' ? 'Transaction History' : activeTab === 'budgets' ? 'Budget Planning' : 'SQL Schema & Logic'}
               </h1>
               <p className="text-slate-500 text-sm mt-1">Welcome back, {user.displayName?.split(' ')[0]}. Your finances are looking healthy.</p>
             </div>
@@ -666,6 +668,17 @@ export default function App() {
               </div>
             </motion.div>
           )}
+
+          {activeTab === 'sql' && (
+            <motion.div 
+              key="sql"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+            >
+              <SQLView />
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
     </main>
@@ -939,6 +952,92 @@ function GlassCard({ children, className, ...props }: { children: React.ReactNod
       )}
     >
       {children}
+    </div>
+  );
+}
+
+function SQLView() {
+  const schema = `-- Expense Tracker SQL Schema
+CREATE TABLE users (
+    uid TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL
+);
+
+CREATE TABLE expenses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    category TEXT NOT NULL,
+    date DATE NOT NULL,
+    uid TEXT NOT NULL,
+    FOREIGN KEY (uid) REFERENCES users(uid)
+);
+
+CREATE TABLE budgets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category TEXT NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    uid TEXT NOT NULL,
+    FOREIGN KEY (uid) REFERENCES users(uid)
+);`;
+
+  const queries = `-- Calculate total spending per category
+SELECT category, SUM(amount) as total 
+FROM expenses 
+WHERE uid = 'user_123' 
+GROUP BY category;
+
+-- Check if any category has exceeded its budget
+SELECT b.category, b.amount as limit, SUM(e.amount) as spent
+FROM budgets b
+JOIN expenses e ON b.category = e.category AND b.uid = e.uid
+WHERE b.uid = 'user_123'
+GROUP BY b.category
+HAVING spent > limit;`;
+
+  return (
+    <div className="space-y-8">
+      <GlassCard className="p-8">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
+            <Database size={20} />
+          </div>
+          <div>
+            <h3 className="text-xl font-bold">Relational Data Model</h3>
+            <p className="text-slate-500 text-sm">This schema represents the logical structure of your data.</p>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+          <div className="space-y-4">
+            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Table Definitions (DDL)</h4>
+            <div className="bg-black/50 rounded-2xl p-6 border border-white/5 overflow-x-auto">
+              <pre className="font-mono text-sm text-blue-300 leading-relaxed">
+                {schema}
+              </pre>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Analytical Queries (DML)</h4>
+            <div className="bg-black/50 rounded-2xl p-6 border border-white/5 overflow-x-auto">
+              <pre className="font-mono text-sm text-emerald-300 leading-relaxed">
+                {queries}
+              </pre>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8 p-6 rounded-2xl bg-blue-500/5 border border-blue-500/10">
+          <div className="flex gap-4">
+            <AlertCircle className="text-blue-400 shrink-0" size={20} />
+            <div className="text-sm text-slate-400 leading-relaxed">
+              <p className="font-bold text-blue-300 mb-1">Educational Note</p>
+              While the live app uses Firebase Firestore for cloud persistence and real-time updates, the data logic remains strictly relational. You can show this schema to your teacher to demonstrate your understanding of normalized database design, primary keys, and foreign key relationships.
+            </div>
+          </div>
+        </div>
+      </GlassCard>
     </div>
   );
 }
